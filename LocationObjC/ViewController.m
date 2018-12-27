@@ -24,6 +24,7 @@
 @synthesize btnStartStop;
 
 NSTimer *timer;
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     
@@ -34,12 +35,6 @@ NSTimer *timer;
     [self addUIElements];
     
 }
-
-//- (void) viewDidAppear:(BOOL)animated{
-////    if([self checkLocationServicesON]){
-////
-////    }
-//}
 
 - (void) addUIElements{
     lblLatLong = [[UILabel alloc] init];
@@ -88,9 +83,6 @@ NSTimer *timer;
     [self.view addSubview: btnStartStop];
     
 }
-
-
-
 
 //Check if device location services settings is ON
 - (BOOL) checkLocationServicesON{
@@ -147,6 +139,7 @@ NSTimer *timer;
     
     if([self checkLocationServicesON]){
         if(!timerStarted){
+            
             [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
             [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
             
@@ -215,17 +208,59 @@ NSTimer *timer;
     
     if (status == kCLAuthorizationStatusDenied) {
         //
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Switch On Location Services." message:@"Your Location Services option is OFF. Do you wish to switch it ON?" preferredStyle:UIAlertControllerStyleAlert];
+        
+        UIAlertAction *yesButton = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            [self dismissViewControllerAnimated:YES completion:nil];
+            
+            NSURL *url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+            [[UIApplication sharedApplication] openURL:url options:[NSDictionary new] completionHandler:nil];
+            
+        }];
+        
+        UIAlertAction *noButton = [UIAlertAction actionWithTitle:@"No" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            [self dismissViewControllerAnimated:YES completion:nil];
+        }];
+        
+        [alert addAction:yesButton];
+        [alert addAction:noButton];
+        
+        [self presentViewController:alert animated:YES completion:nil];
     }
     else if (status == kCLAuthorizationStatusAuthorizedWhenInUse) {
-        
-        if(timer == nil){
-            timer = [NSTimer
-                     scheduledTimerWithTimeInterval:5.0 //5 Seconds Timer
-                     target:self
-                     selector:@selector(getUserLatLong)
-                     userInfo:nil
-                     repeats:YES];
+        if([self checkLocationServicesON]){
+            if(!timerStarted){
+                
+                [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
+                [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
+                
+                [lblLatLong setText: @"getting data..."];
+                [lblTimeStamp setText: @"getting data..."];
+                
+                timer = [NSTimer
+                         scheduledTimerWithTimeInterval:3.0 //5 Seconds Timer
+                         target:self
+                         selector:@selector(getUserLatLong)
+                         userInfo:nil
+                         repeats:YES];
+                
+            } else {
+                //                [buttonObj setTitle:@"START TRACKING" forState:UIControlStateNormal];
+                [btnStartStop setBackgroundColor: [UIColor darkGrayColor]];
+                [self stopTimer];
+            }
+            
+            timerStarted = !timerStarted;
         }
+        
+        //        if(timer == nil){
+        //            timer = [NSTimer
+        //                     scheduledTimerWithTimeInterval:5.0 //5 Seconds Timer
+        //                     target:self
+        //                     selector:@selector(getUserLatLong)
+        //                     userInfo:nil
+        //                     repeats:YES];
+        //        }
     }
 }
 
