@@ -16,6 +16,7 @@
     CLLocationManager *locationManager;
     NSMutableString *latLong;
     NSDate *currentDate;
+    float timeInterval;
 }
 @end
 
@@ -31,6 +32,8 @@ NSTimer *timer;
     viewWidth = self.view.frame.size.width;
     viewHeight = self.view.frame.size.height;
     timerStarted = false;
+    
+    timeInterval = 1.0;
     
     [self addUIElements];
     
@@ -84,92 +87,32 @@ NSTimer *timer;
     
 }
 
-//Check if device location services settings is ON
-- (BOOL) checkLocationServicesON{
-    
-    if(![CLLocationManager locationServicesEnabled]){
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Switch On Location Services." message:@"Your Location Services option is OFF. Do you wish to switch it ON?" preferredStyle:UIAlertControllerStyleAlert];
-        
-        UIAlertAction *yesButton = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self dismissViewControllerAnimated:YES completion:nil];
-            
-            NSURL *url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
-            [[UIApplication sharedApplication] openURL:url options:[NSDictionary new] completionHandler:nil];
-            
-        }];
-        
-        UIAlertAction *noButton = [UIAlertAction actionWithTitle:@"No" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self dismissViewControllerAnimated:YES completion:nil];
-        }];
-        
-        [alert addAction:yesButton];
-        [alert addAction:noButton];
-        
-        [self presentViewController:alert animated:YES completion:nil];
-        
-        return NO;
-    } else {
-        
-        if(![self checkLocationPermissionEnabled]){
-            return NO;
-        } else {
-            return YES;
-        }
-    }
-}
-
-//Check if App Permission for Location Services is ENABLED
-- (BOOL) checkLocationPermissionEnabled{
-    
-    if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusDenied ||
-        [CLLocationManager authorizationStatus] == kCLAuthorizationStatusNotDetermined){
-        
-        locationManager = [[CLLocationManager alloc] init];
-        locationManager.delegate = self;
-        [locationManager requestWhenInUseAuthorization];
-        
-        return NO;
-        
-    } else {
-        return YES;
-    }
-}
-
 - (void) startTimer : (UIButton *) buttonObj{
     
-    if([self checkLocationServicesON]){
-        if(!timerStarted){
-            
-            [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
-            [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
-            
-            [lblLatLong setText: @"getting data..."];
-            [lblTimeStamp setText: @"getting data..."];
-            
-            timer = [NSTimer
-                     scheduledTimerWithTimeInterval:3.0 //5 Seconds Timer
-                     target:self
-                     selector:@selector(getUserLatLong)
-                     userInfo:nil
-                     repeats:YES];
-            
-        } else {
-            [buttonObj setTitle:@"START TRACKING" forState:UIControlStateNormal];
-            [btnStartStop setBackgroundColor: [UIColor darkGrayColor]];
-            [self stopTimer];
-        }
+    if(timerStarted){
+        [self stopTimer];
         
-        timerStarted = !timerStarted;
+        return;
     }
-}
-
-- (void) stopTimer{
     
-    if(timer != nil){
-        [timer invalidate];
-        timer = nil;
-        
-        NSLog(@"Timer Stopped");
+    if([self checkLocationServicesON]){
+        if([self checkLocationPermissionEnabled]){
+            if(!timerStarted){
+                
+                timerStarted = YES;
+                
+                [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
+                [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
+                
+                timer = [NSTimer
+                         scheduledTimerWithTimeInterval:timeInterval
+                         target:self
+                         selector:@selector(getUserLatLong)
+                         userInfo:nil
+                         repeats:YES];                
+                
+            }
+        }
     }
 }
 
@@ -198,16 +141,29 @@ NSTimer *timer;
     NSLog(@"latLong: %@", latLong);
     NSLog(@"");
     
-    if(latLong != nil){
+    if(latLong != nil && timerStarted){
         [lblLatLong setText: latLong];
         [lblTimeStamp setText: dateString];
+        if(timeInterval == 1){
+            timeInterval = 5.0;
+            
+            [self stopTimer];
+            timerStarted = YES;
+            timer = [NSTimer
+                     scheduledTimerWithTimeInterval:timeInterval
+                     target:self
+                     selector:@selector(getUserLatLong)
+                     userInfo:nil
+                     repeats:YES];
+        }
+        
     }
 }
 
 - (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
     
     if (status == kCLAuthorizationStatusDenied) {
-        //
+        
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Switch On Location Services." message:@"Your Location Services option is OFF. Do you wish to switch it ON?" preferredStyle:UIAlertControllerStyleAlert];
         
         UIAlertAction *yesButton = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
@@ -226,47 +182,23 @@ NSTimer *timer;
         [alert addAction:noButton];
         
         [self presentViewController:alert animated:YES completion:nil];
+        
     }
     else if (status == kCLAuthorizationStatusAuthorizedWhenInUse) {
-        if([self checkLocationServicesON]){
-            if(!timerStarted){
-                
-                [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
-                [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
-                
-                [lblLatLong setText: @"getting data..."];
-                [lblTimeStamp setText: @"getting data..."];
-                
-                timer = [NSTimer
-                         scheduledTimerWithTimeInterval:3.0 //5 Seconds Timer
-                         target:self
-                         selector:@selector(getUserLatLong)
-                         userInfo:nil
-                         repeats:YES];
-                
-            } else {
-                //                [buttonObj setTitle:@"START TRACKING" forState:UIControlStateNormal];
-                [btnStartStop setBackgroundColor: [UIColor darkGrayColor]];
-                [self stopTimer];
-            }
-            
-            timerStarted = !timerStarted;
-        }
-        
-        //        if(timer == nil){
-        //            timer = [NSTimer
-        //                     scheduledTimerWithTimeInterval:5.0 //5 Seconds Timer
-        //                     target:self
-        //                     selector:@selector(getUserLatLong)
-        //                     userInfo:nil
-        //                     repeats:YES];
-        //        }
-    }
-}
+        [btnStartStop setTitle:@"STOP TRACKING" forState:UIControlStateNormal];
+        [btnStartStop setBackgroundColor: [UIColor lightGrayColor]];
 
-- (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
-{
-    NSLog(@"%@", error);
+        
+        if(timer == nil){
+            timerStarted = YES;
+            timer = [NSTimer
+                     scheduledTimerWithTimeInterval:timeInterval
+                     target:self
+                     selector:@selector(getUserLatLong)
+                     userInfo:nil
+                     repeats:YES];
+        }
+    }
 }
 
 - (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations{
@@ -278,6 +210,78 @@ NSTimer *timer;
     [latLong appendString:[NSString stringWithFormat:@"%f", loc.coordinate.longitude]];
 }
 
+
+//Check if device location services settings is ON
+- (BOOL) checkLocationServicesON{
+    
+    if(![CLLocationManager locationServicesEnabled]){
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Switch On Location Services." message:@"Your Location Services option is OFF. Do you wish to switch it ON?" preferredStyle:UIAlertControllerStyleAlert];
+        
+        UIAlertAction *yesButton = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            [self dismissViewControllerAnimated:YES completion:nil];
+            
+            NSURL *url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+            [[UIApplication sharedApplication] openURL:url options:[NSDictionary new] completionHandler:nil];
+            
+        }];
+        
+        UIAlertAction *noButton = [UIAlertAction actionWithTitle:@"No" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            [self dismissViewControllerAnimated:YES completion:nil];
+        }];
+        
+        [alert addAction:yesButton];
+        [alert addAction:noButton];
+        
+        [self presentViewController:alert animated:YES completion:nil];
+        
+        return NO;
+    }
+    
+    return YES;
+}
+
+//Check if App Permission for Location Services is ENABLED
+- (BOOL) checkLocationPermissionEnabled{
+    
+    if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusDenied ||
+        [CLLocationManager authorizationStatus] == kCLAuthorizationStatusNotDetermined){
+        
+        [self stopTimer];
+        
+        
+        locationManager = [[CLLocationManager alloc] init];
+        locationManager.delegate = self;
+        [locationManager requestWhenInUseAuthorization];
+        
+        return NO;
+        
+    } else {
+        return YES;
+    }
+}
+
+- (void) stopTimer{
+    
+    if(timer != nil){
+        [timer invalidate];
+        timer = nil;
+        
+        timerStarted = NO;
+        
+        [btnStartStop setTitle:@"START TRACKING" forState:UIControlStateNormal];
+        [btnStartStop setBackgroundColor: [UIColor darkGrayColor]];
+        
+        NSLog(@"Timer Stopped");
+    }
+}
+
+
+
+- (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
+{
+    NSLog(@"%@", error);
+    [self stopTimer];
+}
 
 
 @end
